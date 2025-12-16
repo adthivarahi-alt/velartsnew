@@ -359,7 +359,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setUsers(prev => prev.map(u => u.department === value ? { ...u, department: newValue } : u));
             setTimetable(prev => prev.map(t => {
                 const parts = t.classId.split('-');
-                if (parts[0] === value) return { ...t, classId: `${newValue}-${parts[1]}-${parts[2]}` };
+                // classId format: DEPT-YEAR-SEC
+                if (parts.length === 3 && parts[0] === value) return { ...t, classId: `${newValue}-${parts[1]}-${parts[2]}` };
                 return t;
             }));
         }
@@ -370,7 +371,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setStudents(prev => prev.map(s => s.year === value ? { ...s, year: newValue } : s));
             setTimetable(prev => prev.map(t => {
                 const parts = t.classId.split('-');
-                if (parts[1] === value) return { ...t, classId: `${parts[0]}-${newValue}-${parts[2]}` };
+                if (parts.length === 3 && parts[1] === value) return { ...t, classId: `${parts[0]}-${newValue}-${parts[2]}` };
                 return t;
             }));
         }
@@ -381,7 +382,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             setStudents(prev => prev.map(s => s.section === value ? { ...s, section: newValue } : s));
             setTimetable(prev => prev.map(t => {
                 const parts = t.classId.split('-');
-                if (parts[2] === value) return { ...t, classId: `${parts[0]}-${parts[1]}-${newValue}` };
+                if (parts.length === 3 && parts[2] === value) return { ...t, classId: `${parts[0]}-${parts[1]}-${newValue}` };
                 return t;
             }));
         }

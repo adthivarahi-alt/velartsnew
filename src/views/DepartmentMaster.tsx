@@ -1,9 +1,10 @@
+
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Trash2, Plus, Database, Layers, Calendar, Hash, Edit2, Check, X, Users, AlertCircle } from 'lucide-react';
+import { Trash2, Database, Layers, Calendar, Hash, Edit2, Check, X, Users, AlertCircle } from 'lucide-react';
 
 export const DepartmentMaster: React.FC = () => {
-  const { departments, years, sections, batches, updateMasterData, students, users } = useApp();
+  const { departments, years, sections, batches, updateMasterData, students, users, timetable } = useApp();
   
   // Local state for inputs
   const [newDept, setNewDept] = useState('');
@@ -16,16 +17,28 @@ export const DepartmentMaster: React.FC = () => {
   const [editingItem, setEditingItem] = useState<{type: string, value: string} | null>(null);
   const [editValue, setEditValue] = useState('');
 
-  // Helper to count usage
+  // Helper to count usage for safe deletion warning
   const getUsageCount = (type: 'DEPT' | 'YEAR' | 'SEC' | 'BATCH', value: string) => {
     if (type === 'DEPT') {
       const studentCount = students.filter(s => s.department === value).length;
       const staffCount = users.filter(u => u.department === value).length;
-      return { count: studentCount + staffCount, label: 'members' };
+      // Also check timetable usage (classId starts with Dept)
+      const timetableCount = timetable.filter(t => t.classId.split('-')[0] === value).length;
+      return { count: studentCount + staffCount + timetableCount, label: 'records (students/staff/timetable)' };
     }
-    if (type === 'YEAR') return { count: students.filter(s => s.year === value).length, label: 'students' };
-    if (type === 'SEC') return { count: students.filter(s => s.section === value).length, label: 'students' };
-    if (type === 'BATCH') return { count: students.filter(s => s.batch === value).length, label: 'students' };
+    if (type === 'YEAR') {
+       const studentCount = students.filter(s => s.year === value).length;
+       const timetableCount = timetable.filter(t => t.classId.split('-')[1] === value).length;
+       return { count: studentCount + timetableCount, label: 'records' };
+    }
+    if (type === 'SEC') {
+       const studentCount = students.filter(s => s.section === value).length;
+       const timetableCount = timetable.filter(t => t.classId.split('-')[2] === value).length;
+       return { count: studentCount + timetableCount, label: 'records' };
+    }
+    if (type === 'BATCH') {
+       return { count: students.filter(s => s.batch === value).length, label: 'students' };
+    }
     return { count: 0, label: '' };
   };
 
@@ -52,7 +65,7 @@ export const DepartmentMaster: React.FC = () => {
   const handleRemove = (type: 'DEPT' | 'YEAR' | 'SEC' | 'BATCH', value: string) => {
     const { count, label } = getUsageCount(type, value);
     if (count > 0) {
-      if (!window.confirm(`Warning: ${value} is currently assigned to ${count} ${label}. Deleting it may leave records with missing data. Continue?`)) {
+      if (!window.confirm(`Warning: ${value} is currently used in ${count} ${label}. Deleting it may result in data inconsistencies or hidden records. Are you sure you want to continue?`)) {
         return;
       }
     } else {
@@ -113,16 +126,18 @@ export const DepartmentMaster: React.FC = () => {
           disabled={!value}
           className="bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 transition disabled:opacity-50 font-medium text-sm whitespace-nowrap"
         >
-          Add New
+          Add
         </button>
       </div>
 
       <div className="space-y-2 flex-1 overflow-y-auto max-h-[300px] pr-1">
         {list.length > 0 ? [...list].sort().map((item: string) => {
             const usage = getUsageCount(type, item);
+            const isEditing = editingItem?.type === type && editingItem?.value === item;
+            
             return (
-          <div key={item} className="flex justify-between items-center p-3 bg-gray-50 rounded border border-gray-100 hover:border-blue-300 hover:shadow-sm transition">
-             {editingItem?.type === type && editingItem?.value === item ? (
+          <div key={item} className={`flex justify-between items-center p-3 rounded border transition ${isEditing ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-100 hover:border-blue-300'}`}>
+             {isEditing ? (
                  <div className="flex items-center gap-2 flex-1 animate-in fade-in duration-200">
                      <input 
                        autoFocus
@@ -131,7 +146,7 @@ export const DepartmentMaster: React.FC = () => {
                        onChange={(e) => setEditValue(e.target.value)}
                        onKeyDown={(e) => e.key === 'Enter' && saveEdit(list)}
                      />
-                     <button onClick={() => saveEdit(list)} className="bg-green-100 text-green-600 p-1 rounded hover:bg-green-200" title="Save Update"><Check size={16} /></button>
+                     <button onClick={() => saveEdit(list)} className="bg-green-100 text-green-600 p-1 rounded hover:bg-green-200" title="Save"><Check size={16} /></button>
                      <button onClick={cancelEdit} className="bg-red-100 text-red-500 p-1 rounded hover:bg-red-200" title="Cancel"><X size={16} /></button>
                  </div>
              ) : (
@@ -140,24 +155,24 @@ export const DepartmentMaster: React.FC = () => {
                         <span className="text-gray-800 font-medium text-sm">{item}</span>
                         {usage.count > 0 && (
                             <span className="text-[10px] text-gray-400 flex items-center gap-1">
-                                <Users size={10} /> {usage.count} {usage.label}
+                                <Users size={10} /> {usage.count}
                             </span>
                         )}
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 opacity-60 hover:opacity-100">
                         <button 
                         onClick={() => startEdit(type, item)}
-                        className="text-blue-500 hover:text-blue-700 p-1.5 hover:bg-blue-50 rounded"
-                        title="Edit Department Name"
+                        className="text-blue-500 hover:text-blue-700 p-1.5 hover:bg-blue-100 rounded"
+                        title="Edit"
                         >
-                        <Edit2 size={16} />
+                        <Edit2 size={14} />
                         </button>
                         <button 
                         onClick={() => handleRemove(type, item)}
-                        className="text-gray-400 hover:text-red-600 p-1.5 hover:bg-red-50 rounded"
-                        title="Delete Department"
+                        className="text-gray-400 hover:text-red-600 p-1.5 hover:bg-red-100 rounded"
+                        title="Delete"
                         >
-                        <Trash2 size={16} />
+                        <Trash2 size={14} />
                         </button>
                     </div>
                  </>
@@ -172,11 +187,11 @@ export const DepartmentMaster: React.FC = () => {
     <div className="p-8 max-w-7xl mx-auto">
       <div className="mb-8">
         <h2 className="text-3xl font-bold text-gray-800">Master Data Management</h2>
-        <p className="text-gray-500">Manage institution constants. <span className="text-blue-600 font-medium">Add, Update or Remove Departments.</span></p>
+        <p className="text-gray-500">Manage institution configuration. Add or modify Departments, Years, Sections, and Batches.</p>
       </div>
 
       {error && (
-        <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center gap-2 animate-bounce-short">
+        <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center gap-2 animate-bounce">
            <AlertCircle size={20} />
            {error}
         </div>
@@ -185,7 +200,7 @@ export const DepartmentMaster: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <SectionCard 
            title="Departments" 
-           subtitle="Add or Update Name"
+           subtitle="Academic Departments"
            icon={<Database size={20} />} 
            list={departments} 
            value={newDept} 
@@ -195,6 +210,7 @@ export const DepartmentMaster: React.FC = () => {
         />
         <SectionCard 
            title="Years" 
+           subtitle="Academic Years"
            icon={<Layers size={20} />} 
            list={years} 
            value={newYear} 
@@ -204,6 +220,7 @@ export const DepartmentMaster: React.FC = () => {
         />
         <SectionCard 
            title="Sections" 
+           subtitle="Class Sections"
            icon={<Hash size={20} />} 
            list={sections} 
            value={newSec} 
@@ -213,6 +230,7 @@ export const DepartmentMaster: React.FC = () => {
         />
         <SectionCard 
            title="Batches" 
+           subtitle="Student Batches"
            icon={<Calendar size={20} />} 
            list={batches} 
            value={newBatch} 
