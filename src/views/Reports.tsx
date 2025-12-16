@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { PieChart, Calendar, Download } from 'lucide-react';
+import { PieChart, Calendar, Download, FileSpreadsheet, Filter } from 'lucide-react';
 import { ReportStats } from '../components/reports/ReportStats';
 import { ReportCharts } from '../components/reports/ReportCharts';
 import { SubmissionTable, ClassStatusItem, FacultyPendingItem } from '../components/reports/SubmissionTable';
@@ -12,16 +12,16 @@ export const Reports: React.FC = () => {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [viewMode, setViewMode] = useState<'CLASS' | 'FACULTY'>('CLASS');
 
-  // New states for export sheet
+  // Filters for Detailed Report
   const [selectedDept, setSelectedDept] = useState(departments[0] || 'CSE');
   const [selectedYear, setSelectedYear] = useState(years[0] || 'III');
   const [selectedSection, setSelectedSection] = useState(sections[0] || 'A');
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
   const [selectedHour, setSelectedHour] = useState<number>(1);
 
-  // --- Data Processing for Analytics Dashboard ---
+  // --- Analytics Data Processing ---
 
-  // 1. Group Students into Classes (Dept-Year-Section)
+  // 1. Group Students into Classes
   const classes = useMemo(() => {
     const map: Record<string, { dept: string, year: string, section: string, studentIds: string[] }> = {};
     students.forEach(s => {
@@ -34,9 +34,8 @@ export const Reports: React.FC = () => {
     return Object.values(map).sort((a, b) => a.dept.localeCompare(b.dept) || a.year.localeCompare(b.year));
   }, [students]);
 
-  // 2. Calculate Daily Stats & Class Status
+  // 2. Daily Stats & Class Status
   const { dailyStats, pendingClasses } = useMemo(() => {
-    // Filter records by date and hour.
     const records = attendance.filter(a => a.date === selectedDate && a.hour === selectedHour);
     
     const totalStudents = students.length;
@@ -68,9 +67,7 @@ export const Reports: React.FC = () => {
         });
       }
 
-      // Find Associated Faculty from Timetable for this specific HOUR
       const classId = `${cls.dept}-${cls.year}-${cls.section}`;
-      // Use selectedHour to find who was supposed to be there
       const staffIds = Array.from(new Set(timetable.filter(t => t.classId === classId && t.hour === selectedHour).map(t => t.staffId)));
       const facultyNames = staffIds.map(sid => users.find(u => u.id === sid)?.name).filter(Boolean) as string[];
 
@@ -99,7 +96,7 @@ export const Reports: React.FC = () => {
     };
   }, [attendance, selectedDate, selectedHour, students, classes, timetable, users]);
 
-  // 3. Faculty Wise Pending List
+  // 3. Faculty Pending List
   const facultyPendingList = useMemo(() => {
     const map: Record<string, FacultyPendingItem> = {};
     dailyStats.classStatus.filter(c => c.status === 'PENDING').forEach(cls => {
@@ -126,14 +123,13 @@ export const Reports: React.FC = () => {
     return Object.values(map).sort((a,b) => b.pendingClasses.length - a.pendingClasses.length);
   }, [dailyStats, users]);
 
-  // 4. Department-wise Stats
+  // 4. Dept Stats
   const deptStats = useMemo(() => {
     const stats: Record<string, { total: number, present: number, marked: number }> = {};
     students.forEach(s => {
       if (!stats[s.department]) stats[s.department] = { total: 0, present: 0, marked: 0 };
       stats[s.department].total++;
     });
-    // Filter by Hour
     attendance.filter(a => a.date === selectedDate && a.hour === selectedHour).forEach(a => {
       const student = students.find(s => s.id === a.studentId);
       if (student && stats[student.department]) {
@@ -148,7 +144,7 @@ export const Reports: React.FC = () => {
     })).sort((a, b) => b.totalStudents - a.totalStudents);
   }, [students, attendance, selectedDate, selectedHour]);
 
-  // 5. Detailed Department Metrics for Summary Table
+  // 5. Dept Metrics
   const deptMetrics: DepartmentMetric[] = useMemo(() => {
     const metrics: Record<string, DepartmentMetric> = {};
     departments.forEach(d => {
@@ -175,14 +171,13 @@ export const Reports: React.FC = () => {
     return Object.values(metrics).sort((a,b) => b.totalStudents - a.totalStudents);
   }, [students, attendance, selectedDate, selectedHour, dailyStats, departments]);
 
-  // 6. Last 7 Days Trend (Average of selected hour?)
+  // 6. Trend Data
   const trendData = useMemo(() => {
     const days = [];
     for (let i = 6; i >= 0; i--) {
       const d = new Date(selectedDate);
       d.setDate(d.getDate() - i);
       const dateStr = d.toISOString().split('T')[0];
-      // Trend for the selected hour across days
       const recs = attendance.filter(a => a.date === dateStr && a.hour === selectedHour);
       const pres = recs.filter(a => a.status === 'PRESENT').length;
       const pct = recs.length > 0 ? Math.round((pres / recs.length) * 100) : 0;
@@ -191,39 +186,53 @@ export const Reports: React.FC = () => {
     return days;
   }, [attendance, selectedDate, selectedHour]);
 
-  // --- Export Logic ---
+  // --- Detailed Report Data Processing ---
+  
+  const [yearStr, monthStr] = selectedMonth.split('-');
+  const daysInMonth = new Date(parseInt(yearStr), parseInt(monthStr), 0).getDate();
+  const daysArray = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
-  const handleExport = () => {
-    const [yearStr, monthStr] = selectedMonth.split('-');
-    const year = parseInt(yearStr);
-    const month = parseInt(monthStr);
-    const daysInMonth = new Date(year, month, 0).getDate();
-    const daysArray = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-
-    const classStudents = students.filter(s => 
+  const filteredStudents = useMemo(() => {
+    return students.filter(s => 
       s.department === selectedDept && 
       s.year === selectedYear && 
       (s.section ? s.section === selectedSection : true)
     ).sort((a, b) => a.registerNumber.localeCompare(b.registerNumber));
+  }, [students, selectedDept, selectedYear, selectedSection]);
 
-    // Export with Hour
+  const getStudentStatusForDay = (studentId: string, day: number) => {
+    const dateStr = `${selectedMonth}-${day.toString().padStart(2, '0')}`;
+    return attendance.find(a => 
+      a.studentId === studentId && 
+      a.date === dateStr && 
+      a.hour === selectedHour
+    )?.status;
+  };
+
+  const getStatusColor = (status: string | undefined) => {
+    switch (status) {
+      case 'PRESENT': return 'bg-green-100 text-green-700';
+      case 'ABSENT': return 'bg-red-100 text-red-700';
+      case 'LATE': return 'bg-yellow-100 text-yellow-700';
+      default: return 'text-gray-300';
+    }
+  };
+
+  const handleExport = () => {
     let csv = `Register No,Name,Hour,${daysArray.join(',')},Total Present,Total Absent,Total Late\n`;
     
-    classStudents.forEach(s => {
+    filteredStudents.forEach(s => {
       let present = 0;
       let absent = 0;
       let late = 0;
       const row = [s.registerNumber, s.name, selectedHour.toString()];
       
       daysArray.forEach(day => {
-        const dateStr = `${selectedMonth}-${day.toString().padStart(2, '0')}`;
-        // Fetch record for this Student, Date AND selected Hour
-        const record = attendance.find(a => a.studentId === s.id && a.date === dateStr && a.hour === selectedHour);
-        const status = record ? record.status : '-';
+        const status = getStudentStatusForDay(s.id, day);
         if (status === 'PRESENT') present++;
         if (status === 'ABSENT') absent++;
         if (status === 'LATE') late++;
-        row.push(status === 'PRESENT' ? 'P' : status === 'ABSENT' ? 'A' : status === 'LATE' ? 'L' : '-');
+        row.push(status ? status.charAt(0) : '-');
       });
       
       row.push(present.toString(), absent.toString(), late.toString());
@@ -276,10 +285,9 @@ export const Reports: React.FC = () => {
         </div>
       </div>
 
-      {/* Top Cards */}
+      {/* Analytics Components */}
       <ReportStats stats={dailyStats} />
       
-      {/* Charts Area */}
       <ReportCharts 
         deptStats={deptStats} 
         trendData={trendData} 
@@ -291,10 +299,8 @@ export const Reports: React.FC = () => {
         }}
       />
 
-      {/* New: Detailed Department Summary */}
       <DepartmentSummary metrics={deptMetrics} />
 
-      {/* Existing: Granular Submission Table */}
       <SubmissionTable 
         viewMode={viewMode}
         setViewMode={setViewMode}
@@ -302,43 +308,105 @@ export const Reports: React.FC = () => {
         facultyPendingList={facultyPendingList}
       />
 
-      {/* Monthly Report Export Section */}
-      <div className="mt-12 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-        <h3 className="text-lg font-bold text-gray-800 mb-4">Export Monthly Report</h3>
-        <p className="text-xs text-gray-500 mb-4">Generates CSV report for the selected <strong>Hour {selectedHour}</strong>.</p>
-        <div className="flex flex-wrap gap-4 items-end">
-           <div className="flex flex-col">
-              <label className="text-xs text-gray-500 mb-1">Month</label>
-              <input 
-                type="month" 
-                value={selectedMonth} 
-                onChange={e => setSelectedMonth(e.target.value)}
-                className="border p-2 rounded"
-              />
-           </div>
-           <div className="flex flex-col">
-              <label className="text-xs text-gray-500 mb-1">Department</label>
-              <select value={selectedDept} onChange={e => setSelectedDept(e.target.value)} className="border p-2 rounded min-w-[120px]">
-                {departments.map(d => <option key={d} value={d}>{d}</option>)}
-              </select>
-           </div>
-           <div className="flex flex-col">
-              <label className="text-xs text-gray-500 mb-1">Year</label>
-              <select value={selectedYear} onChange={e => setSelectedYear(e.target.value)} className="border p-2 rounded min-w-[100px]">
-                {years.map(y => <option key={y} value={y}>Year {y}</option>)}
-              </select>
-           </div>
-           <div className="flex flex-col">
-              <label className="text-xs text-gray-500 mb-1">Section</label>
-              <select value={selectedSection} onChange={e => setSelectedSection(e.target.value)} className="border p-2 rounded min-w-[100px]">
-                {sections.map(s => <option key={s} value={s}>Section {s}</option>)}
-              </select>
-           </div>
-           <button onClick={handleExport} className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 h-[42px]">
-             <Download size={18} /> Export Sheet
-           </button>
+      {/* Detailed Report Section */}
+      <div className="mt-12 bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="p-6 border-b border-gray-100 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+            <div>
+                <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                    <FileSpreadsheet className="text-blue-600" size={20} />
+                    Detailed Class Report
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                    Monthly attendance sheet for Hour {selectedHour}. 
+                </p>
+            </div>
+            
+            <div className="flex flex-wrap gap-4 items-end bg-gray-50 p-3 rounded-lg border border-gray-100">
+                <div className="flex flex-col">
+                    <label className="text-xs text-gray-500 mb-1 font-semibold">Month</label>
+                    <input 
+                        type="month" 
+                        value={selectedMonth} 
+                        onChange={e => setSelectedMonth(e.target.value)}
+                        className="border p-1.5 rounded text-sm outline-none focus:border-blue-500"
+                    />
+                </div>
+                <div className="flex flex-col">
+                    <label className="text-xs text-gray-500 mb-1 font-semibold">Department</label>
+                    <select value={selectedDept} onChange={e => setSelectedDept(e.target.value)} className="border p-1.5 rounded text-sm min-w-[100px] outline-none focus:border-blue-500">
+                        {departments.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                </div>
+                <div className="flex flex-col">
+                    <label className="text-xs text-gray-500 mb-1 font-semibold">Year</label>
+                    <select value={selectedYear} onChange={e => setSelectedYear(e.target.value)} className="border p-1.5 rounded text-sm min-w-[80px] outline-none focus:border-blue-500">
+                        {years.map(y => <option key={y} value={y}>{y}</option>)}
+                    </select>
+                </div>
+                <div className="flex flex-col">
+                    <label className="text-xs text-gray-500 mb-1 font-semibold">Section</label>
+                    <select value={selectedSection} onChange={e => setSelectedSection(e.target.value)} className="border p-1.5 rounded text-sm min-w-[80px] outline-none focus:border-blue-500">
+                        {sections.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                </div>
+                <button onClick={handleExport} className="flex items-center gap-2 bg-green-600 text-white px-4 py-1.5 rounded text-sm hover:bg-green-700 h-[34px] shadow-sm">
+                    <Download size={16} /> Export
+                </button>
+            </div>
+        </div>
+        
+        <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+                <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase sticky left-0 bg-gray-50 z-10 w-24 border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">Reg No</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase sticky left-24 bg-gray-50 z-10 w-48 border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">Name</th>
+                    {daysArray.map(day => (
+                        <th key={day} className="px-1 py-3 text-center text-xs font-medium text-gray-500 w-8 min-w-[32px] border-r border-gray-100 last:border-0">
+                        {day}
+                        </th>
+                    ))}
+                    <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase bg-green-50">P</th>
+                    <th className="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase bg-red-50">A</th>
+                </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+                {filteredStudents.length > 0 ? filteredStudents.map(student => {
+                    let pCount = 0;
+                    let aCount = 0;
+                    return (
+                        <tr key={student.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-2 text-xs font-mono text-gray-600 sticky left-0 bg-white z-10 border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]">{student.registerNumber}</td>
+                            <td className="px-4 py-2 text-sm font-medium text-gray-900 sticky left-24 bg-white z-10 border-r shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] truncate max-w-[12rem]">{student.name}</td>
+                            {daysArray.map(day => {
+                                const status = getStudentStatusForDay(student.id, day);
+                                if (status === 'PRESENT') pCount++;
+                                if (status === 'ABSENT') aCount++;
+                                
+                                return (
+                                <td key={day} className="px-1 py-2 text-center border-r border-gray-50 last:border-0">
+                                    <span className={`inline-block w-6 h-6 leading-6 rounded text-[10px] font-bold ${getStatusColor(status)}`}>
+                                    {status ? status.charAt(0) : ''}
+                                    </span>
+                                </td>
+                                );
+                            })}
+                            <td className="px-2 py-2 text-sm text-green-700 text-center font-bold bg-green-50">{pCount}</td>
+                            <td className="px-2 py-2 text-sm text-red-700 text-center font-bold bg-red-50">{aCount}</td>
+                        </tr>
+                    );
+                }) : (
+                    <tr>
+                        <td colSpan={daysInMonth + 4} className="px-6 py-12 text-center text-gray-400 italic">
+                            No students found for {selectedDept} - {selectedYear} ({selectedSection})
+                        </td>
+                    </tr>
+                )}
+            </tbody>
+            </table>
         </div>
       </div>
+
     </div>
   );
 };

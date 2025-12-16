@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { User, Student, TimetableEntry, AttendanceRecord, Holiday, Role, GoogleSheetsConfig, DEFAULT_DEPARTMENTS, DEFAULT_YEARS, DEFAULT_SECTIONS, DEFAULT_BATCHES } from '../types';
 import { initGapiClient, initGisClient, signIn, signOut, fetchSheetData, updateSheetData, clearSheetData } from '../utils/sheets';
@@ -148,7 +149,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await clearSheetData(sid, 'Students!A:H');
       await updateSheetData(sid, 'Students!A1', studRows);
 
-      // Attendance
+      // Attendance - Added Hour column
       const attRows = [['ID', 'Date', 'Hour', 'StudentID', 'Status', 'MarkedBy'], 
         ...attendance.map(a => [a.id, a.date, a.hour, a.studentId, a.status, a.markedBy])];
       await clearSheetData(sid, 'Attendance!A:F');
@@ -215,7 +216,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         })));
       }
 
-      // Attendance
+      // Attendance - Added Hour reading
       const attRows = await fetchSheetData(sid, 'Attendance!A2:F');
       if (attRows.length) {
         setAttendance(attRows.map(r => ({
@@ -329,6 +330,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const markAttendance = (record: AttendanceRecord) => {
     setAttendance(prev => {
+      // Check for Date, Student AND Hour uniqueness
       const filtered = prev.filter(a => !(a.date === record.date && a.studentId === record.studentId && a.hour === record.hour));
       return [...filtered, record];
     });
