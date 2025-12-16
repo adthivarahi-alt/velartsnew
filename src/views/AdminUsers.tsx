@@ -1,25 +1,69 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { User, Role } from '../types';
-import { Trash2, Shield, User as UserIcon, Lock } from 'lucide-react';
+import { Role } from '../types';
+import { Trash2, Shield, User as UserIcon, Edit2, X } from 'lucide-react';
 
 export const AdminUsers: React.FC = () => {
-  const { users, addUser, removeUser } = useApp();
+  const { users, addUser, updateUser, removeUser, departments } = useApp();
   const [formData, setFormData] = useState({ name: '', email: '', password: '', role: 'STAFF' as Role, department: '' });
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.name && formData.email && formData.password) {
-      addUser({
-        id: Date.now().toString(),
-        name: formData.name,
-        email: formData.email,
-        password: formData.password,
-        role: formData.role,
-        department: formData.department
-      });
+    if (formData.name && formData.email) {
+      // Default to first department if not selected and role is STAFF
+      const dept = formData.role === 'STAFF' && !formData.department && departments.length > 0 
+        ? departments[0] 
+        : formData.department;
+
+      if (editingId) {
+        // Update Existing
+        const existingUser = users.find(u => u.id === editingId);
+        if (existingUser) {
+          updateUser({
+            ...existingUser,
+            name: formData.name,
+            email: formData.email,
+            password: formData.password || existingUser.password, // Keep old password if not changed
+            role: formData.role,
+            department: formData.role === 'STAFF' ? dept : undefined
+          });
+        }
+        setEditingId(null);
+      } else {
+        // Create New
+        if (!formData.password) {
+            alert("Password is required for new users.");
+            return;
+        }
+        addUser({
+          id: Date.now().toString(),
+          name: formData.name,
+          email: formData.email,
+          password: formData.password,
+          role: formData.role,
+          department: formData.role === 'STAFF' ? dept : undefined
+        });
+      }
+      
       setFormData({ name: '', email: '', password: '', role: 'STAFF', department: '' });
     }
+  };
+
+  const handleEdit = (user: any) => {
+    setEditingId(user.id);
+    setFormData({
+      name: user.name,
+      email: user.email,
+      password: '', // Don't show password, allow overwrite
+      role: user.role,
+      department: user.department || ''
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setFormData({ name: '', email: '', password: '', role: 'STAFF', department: '' });
   };
 
   return (
@@ -30,9 +74,15 @@ export const AdminUsers: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Create User Form */}
-        <div className="bg-white p-6 rounded-lg shadow-md h-fit">
-          <h3 className="text-lg font-bold mb-4">Add New User</h3>
+        {/* Create/Edit User Form */}
+        <div className="bg-white p-6 rounded-lg shadow-md h-fit border-t-4 border-blue-500">
+          <div className="flex justify-between items-center mb-4">
+             <h3 className="text-lg font-bold">{editingId ? 'Edit User' : 'Add New User'}</h3>
+             {editingId && (
+               <button onClick={cancelEdit} className="text-gray-400 hover:text-gray-600"><X size={20} /></button>
+             )}
+          </div>
+          
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div>
               <label className="block text-sm text-gray-600 mb-1">Full Name</label>
@@ -54,14 +104,14 @@ export const AdminUsers: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block text-sm text-gray-600 mb-1">Password</label>
+              <label className="block text-sm text-gray-600 mb-1">Password {editingId && <span className="text-gray-400 font-normal">(Leave blank to keep current)</span>}</label>
               <input 
                 type="password"
                 className="w-full border p-2 rounded outline-blue-500"
                 value={formData.password}
                 onChange={e => setFormData({...formData, password: e.target.value})}
-                required
-                placeholder="Set initial password"
+                placeholder={editingId ? "********" : "Set initial password"}
+                required={!editingId}
               />
             </div>
             <div>
@@ -78,15 +128,22 @@ export const AdminUsers: React.FC = () => {
             {formData.role === 'STAFF' && (
               <div>
                 <label className="block text-sm text-gray-600 mb-1">Department</label>
-                <input 
+                <select 
                   className="w-full border p-2 rounded outline-blue-500"
                   value={formData.department}
                   onChange={e => setFormData({...formData, department: e.target.value})}
-                  placeholder="e.g. CSE"
-                />
+                  required
+                >
+                  <option value="" disabled>Select Department</option>
+                  {departments.map(d => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
               </div>
             )}
-            <button className="bg-blue-600 text-white py-2 rounded hover:bg-blue-700 font-medium">Create User</button>
+            <button className={`py-2 rounded text-white font-medium transition ${editingId ? 'bg-orange-600 hover:bg-orange-700' : 'bg-blue-600 hover:bg-blue-700'}`}>
+               {editingId ? 'Update User' : 'Create User'}
+            </button>
           </form>
         </div>
 
@@ -103,7 +160,7 @@ export const AdminUsers: React.FC = () => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {users.map(user => (
-                <tr key={user.id} className="hover:bg-gray-50">
+                <tr key={user.id} className={`hover:bg-gray-50 ${editingId === user.id ? 'bg-blue-50' : ''}`}>
                   <td className="px-6 py-4">
                     <div className="flex items-center">
                       <div className={`flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center ${user.role === 'ADMIN' ? 'bg-purple-100 text-purple-600' : 'bg-blue-100 text-blue-600'}`}>
@@ -124,12 +181,22 @@ export const AdminUsers: React.FC = () => {
                     {user.department || '-'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                    <button 
-                      onClick={() => removeUser(user.id)}
-                      className="text-red-600 hover:text-red-900"
-                    >
-                      <Trash2 size={18} />
-                    </button>
+                    <div className="flex justify-end gap-2">
+                        <button 
+                        onClick={() => handleEdit(user)}
+                        className="text-blue-600 hover:text-blue-900 p-1 hover:bg-blue-50 rounded"
+                        title="Edit User"
+                        >
+                        <Edit2 size={18} />
+                        </button>
+                        <button 
+                        onClick={() => removeUser(user.id)}
+                        className="text-red-600 hover:text-red-900 p-1 hover:bg-red-50 rounded"
+                        title="Remove User"
+                        >
+                        <Trash2 size={18} />
+                        </button>
+                    </div>
                   </td>
                 </tr>
               ))}

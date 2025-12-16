@@ -1,11 +1,15 @@
 import React, { useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { Users, CalendarDays, AlertCircle, PieChart } from 'lucide-react';
+import { Users, CalendarDays, AlertCircle, PieChart, Database, UserPlus, FileText } from 'lucide-react';
 import { ReportStats } from '../components/reports/ReportStats';
 import { ReportCharts } from '../components/reports/ReportCharts';
 import { DepartmentSummary, DepartmentMetric } from '../components/reports/DepartmentSummary';
 
-export const Dashboard: React.FC = () => {
+interface DashboardProps {
+  setView: (view: string) => void;
+}
+
+export const Dashboard: React.FC<DashboardProps> = ({ setView }) => {
   const { students, attendance, currentUser, departments } = useApp();
   const isAdmin = currentUser?.role === 'ADMIN';
   
@@ -149,20 +153,45 @@ export const Dashboard: React.FC = () => {
           {/* Quick Actions for Admin */}
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
             <h3 className="text-lg font-bold text-gray-800 mb-4">Quick Management</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="p-4 bg-indigo-50 rounded-lg border border-indigo-100 hover:bg-indigo-100 transition cursor-pointer text-center group">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              <div 
+                onClick={() => setView('master')}
+                className="p-4 bg-purple-50 rounded-lg border border-purple-100 hover:bg-purple-100 transition cursor-pointer text-center group"
+              >
+                 <div className="flex justify-center mb-2"><Database className="text-purple-600" size={24} /></div>
+                 <span className="text-purple-700 font-bold block mb-1">Master Data</span>
+                 <span className="text-xs text-purple-500">Departments & Sections</span>
+              </div>
+
+              <div 
+                onClick={() => setView('users')}
+                className="p-4 bg-indigo-50 rounded-lg border border-indigo-100 hover:bg-indigo-100 transition cursor-pointer text-center group"
+              >
+                 <div className="flex justify-center mb-2"><UserPlus className="text-indigo-600" size={24} /></div>
                  <span className="text-indigo-700 font-bold block mb-1">Add Staff</span>
                  <span className="text-xs text-indigo-500">Manage directory</span>
               </div>
-              <div className="p-4 bg-emerald-50 rounded-lg border border-emerald-100 hover:bg-emerald-100 transition cursor-pointer text-center">
-                 <span className="text-emerald-700 font-bold block mb-1">Mark Attendance</span>
+              <div 
+                onClick={() => setView('attendance')}
+                className="p-4 bg-emerald-50 rounded-lg border border-emerald-100 hover:bg-emerald-100 transition cursor-pointer text-center"
+              >
+                 <div className="flex justify-center mb-2"><CalendarDays className="text-emerald-600" size={24} /></div>
+                 <span className="text-emerald-700 font-bold block mb-1">Attendance</span>
                  <span className="text-xs text-emerald-500">Update records</span>
               </div>
-              <div className="p-4 bg-orange-50 rounded-lg border border-orange-100 hover:bg-orange-100 transition cursor-pointer text-center">
+              <div 
+                onClick={() => setView('holidays')}
+                className="p-4 bg-orange-50 rounded-lg border border-orange-100 hover:bg-orange-100 transition cursor-pointer text-center"
+              >
+                 <div className="flex justify-center mb-2"><AlertCircle className="text-orange-600" size={24} /></div>
                  <span className="text-orange-700 font-bold block mb-1">Holidays</span>
                  <span className="text-xs text-orange-500">Configure calendar</span>
               </div>
-              <div className="p-4 bg-blue-50 rounded-lg border border-blue-100 hover:bg-blue-100 transition cursor-pointer text-center">
+              <div 
+                onClick={() => setView('students')}
+                className="p-4 bg-blue-50 rounded-lg border border-blue-100 hover:bg-blue-100 transition cursor-pointer text-center"
+              >
+                 <div className="flex justify-center mb-2"><FileText className="text-blue-600" size={24} /></div>
                  <span className="text-blue-700 font-bold block mb-1">Students</span>
                  <span className="text-xs text-blue-500">Bulk upload</span>
               </div>

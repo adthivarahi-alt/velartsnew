@@ -127,17 +127,17 @@ const MainLayout: React.FC = () => {
 
   const renderView = () => {
     switch(currentView) {
-      case 'dashboard': return <Dashboard />;
+      case 'dashboard': return <Dashboard setView={setCurrentView} />;
       case 'timetable': return <Timetable />;
       case 'students': return <Students />;
       case 'attendance': return <Attendance />;
       case 'staff': return <Staff />;
       case 'reports': return <Reports />;
-      case 'users': return currentUser?.role === 'ADMIN' ? <AdminUsers /> : <Dashboard />;
-      case 'holidays': return currentUser?.role === 'ADMIN' ? <Holidays /> : <Dashboard />;
-      case 'settings': return currentUser?.role === 'ADMIN' ? <Settings /> : <Dashboard />;
-      case 'master': return currentUser?.role === 'ADMIN' ? <DepartmentMaster /> : <Dashboard />;
-      default: return <Dashboard />;
+      case 'users': return currentUser?.role === 'ADMIN' ? <AdminUsers /> : <Dashboard setView={setCurrentView} />;
+      case 'holidays': return currentUser?.role === 'ADMIN' ? <Holidays /> : <Dashboard setView={setCurrentView} />;
+      case 'settings': return currentUser?.role === 'ADMIN' ? <Settings /> : <Dashboard setView={setCurrentView} />;
+      case 'master': return currentUser?.role === 'ADMIN' ? <DepartmentMaster /> : <Dashboard setView={setCurrentView} />;
+      default: return <Dashboard setView={setCurrentView} />;
     }
   };
 

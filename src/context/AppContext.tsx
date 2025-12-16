@@ -8,6 +8,7 @@ interface AppContextType {
   logout: () => void;
   users: User[];
   addUser: (user: User) => void;
+  updateUser: (user: User) => void;
   removeUser: (id: string) => void;
   students: Student[];
   addStudents: (newStudents: Student[]) => void;
@@ -308,6 +309,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const logout = () => setCurrentUser(null);
 
   const addUser = (user: User) => setUsers([...users, user]);
+  
+  const updateUser = (updatedUser: User) => {
+    setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+  };
+
   const removeUser = (id: string) => setUsers(users.filter(u => u.id !== id));
 
   const addStudents = (newStudents: Student[]) => {
@@ -389,7 +395,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   return (
     <AppContext.Provider value={{
       currentUser, login, logout,
-      users, addUser, removeUser,
+      users, addUser, updateUser, removeUser,
       students, addStudents,
       timetable, updateTimetable,
       attendance, markAttendance,

@@ -31,7 +31,8 @@ export const DepartmentMaster: React.FC = () => {
 
   const validateAndAdd = (type: 'DEPT' | 'YEAR' | 'SEC' | 'BATCH', value: string, setter: (v: string) => void, list: string[]) => {
     if (!value.trim()) return;
-    if (list.includes(value.trim())) {
+    // Case insensitive duplicate check
+    if (list.some(item => item.toLowerCase() === value.trim().toLowerCase())) {
       setError(`${value} already exists in ${type} list.`);
       setTimeout(() => setError(null), 3000);
       return;
@@ -74,7 +75,8 @@ export const DepartmentMaster: React.FC = () => {
 
   const saveEdit = (list: string[]) => {
     if (editingItem && editValue && editValue !== editingItem.value) {
-        if (list.includes(editValue.trim())) {
+        // Case insensitive duplicate check for edit (excluding itself)
+        if (list.some(item => item !== editingItem.value && item.toLowerCase() === editValue.trim().toLowerCase())) {
             setError(`"${editValue}" already exists.`);
             setTimeout(() => setError(null), 3000);
             return;
@@ -84,9 +86,9 @@ export const DepartmentMaster: React.FC = () => {
     cancelEdit();
   };
 
-  const SectionCard = ({ title, icon, list, value, setValue, type }: any) => (
+  const SectionCard = ({ title, icon, list, value, setValue, type, placeholder, subtitle }: any) => (
     <div className="bg-white p-6 rounded-lg shadow-md border-t-4 border-blue-500 h-full flex flex-col">
-      <div className="flex items-center gap-2 mb-4">
+      <div className="flex items-center gap-2 mb-2">
         <div className="p-2 bg-blue-50 rounded-full text-blue-600">
            {icon}
         </div>
@@ -95,6 +97,7 @@ export const DepartmentMaster: React.FC = () => {
             {list.length}
         </span>
       </div>
+      {subtitle && <p className="text-xs text-gray-400 mb-4">{subtitle}</p>}
       
       <div className="flex gap-2 mb-4">
         <input 
@@ -102,15 +105,15 @@ export const DepartmentMaster: React.FC = () => {
           value={value} 
           onChange={(e) => setValue(e.target.value)} 
           className="border rounded p-2 flex-1 text-sm outline-blue-500 focus:ring-2 focus:ring-blue-200"
-          placeholder={`Add ${title}...`}
+          placeholder={placeholder || `Add ${title}...`}
           onKeyDown={(e) => e.key === 'Enter' && handleAdd(type)}
         />
         <button 
           onClick={() => handleAdd(type)}
           disabled={!value}
-          className="bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 transition disabled:opacity-50"
+          className="bg-blue-600 text-white px-3 py-2 rounded hover:bg-blue-700 transition disabled:opacity-50 font-medium text-sm whitespace-nowrap"
         >
-          <Plus size={18} />
+          Add New
         </button>
       </div>
 
@@ -118,7 +121,7 @@ export const DepartmentMaster: React.FC = () => {
         {list.length > 0 ? [...list].sort().map((item: string) => {
             const usage = getUsageCount(type, item);
             return (
-          <div key={item} className="flex justify-between items-center p-2 bg-gray-50 rounded border border-gray-100 hover:border-blue-200 hover:shadow-sm transition group">
+          <div key={item} className="flex justify-between items-center p-3 bg-gray-50 rounded border border-gray-100 hover:border-blue-300 hover:shadow-sm transition">
              {editingItem?.type === type && editingItem?.value === item ? (
                  <div className="flex items-center gap-2 flex-1 animate-in fade-in duration-200">
                      <input 
@@ -128,33 +131,33 @@ export const DepartmentMaster: React.FC = () => {
                        onChange={(e) => setEditValue(e.target.value)}
                        onKeyDown={(e) => e.key === 'Enter' && saveEdit(list)}
                      />
-                     <button onClick={() => saveEdit(list)} className="bg-green-100 text-green-600 p-1 rounded hover:bg-green-200"><Check size={14} /></button>
-                     <button onClick={cancelEdit} className="bg-red-100 text-red-500 p-1 rounded hover:bg-red-200"><X size={14} /></button>
+                     <button onClick={() => saveEdit(list)} className="bg-green-100 text-green-600 p-1 rounded hover:bg-green-200" title="Save Update"><Check size={16} /></button>
+                     <button onClick={cancelEdit} className="bg-red-100 text-red-500 p-1 rounded hover:bg-red-200" title="Cancel"><X size={16} /></button>
                  </div>
              ) : (
                  <>
                     <div className="flex flex-col">
-                        <span className="text-gray-700 font-medium text-sm">{item}</span>
+                        <span className="text-gray-800 font-medium text-sm">{item}</span>
                         {usage.count > 0 && (
                             <span className="text-[10px] text-gray-400 flex items-center gap-1">
                                 <Users size={10} /> {usage.count} {usage.label}
                             </span>
                         )}
                     </div>
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-2">
                         <button 
                         onClick={() => startEdit(type, item)}
-                        className="text-gray-400 hover:text-blue-600 p-1.5 hover:bg-blue-50 rounded"
-                        title="Edit"
+                        className="text-blue-500 hover:text-blue-700 p-1.5 hover:bg-blue-50 rounded"
+                        title="Edit Department Name"
                         >
-                        <Edit2 size={14} />
+                        <Edit2 size={16} />
                         </button>
                         <button 
                         onClick={() => handleRemove(type, item)}
                         className="text-gray-400 hover:text-red-600 p-1.5 hover:bg-red-50 rounded"
-                        title="Delete"
+                        title="Delete Department"
                         >
-                        <Trash2 size={14} />
+                        <Trash2 size={16} />
                         </button>
                     </div>
                  </>
@@ -169,7 +172,7 @@ export const DepartmentMaster: React.FC = () => {
     <div className="p-8 max-w-7xl mx-auto">
       <div className="mb-8">
         <h2 className="text-3xl font-bold text-gray-800">Master Data Management</h2>
-        <p className="text-gray-500">Add or modify Departments, Years, Sections, and Batches. <span className="text-blue-600 font-medium">Changes here will automatically update related student and timetable records.</span></p>
+        <p className="text-gray-500">Manage institution constants. <span className="text-blue-600 font-medium">Add, Update or Remove Departments.</span></p>
       </div>
 
       {error && (
@@ -182,11 +185,13 @@ export const DepartmentMaster: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <SectionCard 
            title="Departments" 
+           subtitle="Add or Update Name"
            icon={<Database size={20} />} 
            list={departments} 
            value={newDept} 
            setValue={setNewDept} 
-           type="DEPT" 
+           type="DEPT"
+           placeholder="e.g. CSE"
         />
         <SectionCard 
            title="Years" 
@@ -194,7 +199,8 @@ export const DepartmentMaster: React.FC = () => {
            list={years} 
            value={newYear} 
            setValue={setNewYear} 
-           type="YEAR" 
+           type="YEAR"
+           placeholder="e.g. IV"
         />
         <SectionCard 
            title="Sections" 
@@ -202,7 +208,8 @@ export const DepartmentMaster: React.FC = () => {
            list={sections} 
            value={newSec} 
            setValue={setNewSec} 
-           type="SEC" 
+           type="SEC"
+           placeholder="e.g. A"
         />
         <SectionCard 
            title="Batches" 
@@ -210,7 +217,8 @@ export const DepartmentMaster: React.FC = () => {
            list={batches} 
            value={newBatch} 
            setValue={setNewBatch} 
-           type="BATCH" 
+           type="BATCH"
+           placeholder="e.g. 2024-2028"
         />
       </div>
     </div>

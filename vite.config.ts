@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  // IMPORTANT: If deploying to https://<USERNAME>.github.io/<REPO>/
-  // Change './' to '/<REPO>/'. Example: base: '/EduManager/'
-  base: './', 
+  // REPLACE '/edumanager/' WITH YOUR EXACT GITHUB REPOSITORY NAME SURROUNDED BY SLASHES
+  // Example: if your repo is 'school-app', this should be '/school-app/'
+  base: '/edumanager/', 
 })
