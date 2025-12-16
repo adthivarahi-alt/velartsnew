@@ -1,3 +1,4 @@
+
 export type Role = 'ADMIN' | 'STAFF';
 
 export interface User {
@@ -33,6 +34,7 @@ export interface TimetableEntry {
 export interface AttendanceRecord {
   id: string;
   date: string; // YYYY-MM-DD
+  hour: number; // 1-6
   studentId: string;
   status: 'PRESENT' | 'ABSENT' | 'LATE';
   markedBy: string;

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
     import { useApp } from '../context/AppContext';
     import { CheckCircle, XCircle, Clock, CalendarOff } from 'lucide-react';
+    import { HOURS_PER_DAY } from '../types';
 
     export const Attendance: React.FC = () => {
       const { students, attendance, markAttendance, holidays, currentUser, departments, years, sections } = useApp();
@@ -8,6 +9,7 @@ import React, { useState } from 'react';
       const [selectedDept, setSelectedDept] = useState(departments[0] || 'CSE');
       const [selectedYear, setSelectedYear] = useState(years[0] || 'III');
       const [selectedSection, setSelectedSection] = useState(sections[0] || 'A');
+      const [selectedHour, setSelectedHour] = useState<number>(1);
 
       // Check if holiday
       const isHoliday = holidays.find(h => h.date === selectedDate);
@@ -19,7 +21,7 @@ import React, { useState } from 'react';
       );
 
       const getStatus = (studentId: string) => {
-        return attendance.find(a => a.studentId === studentId && a.date === selectedDate)?.status;
+        return attendance.find(a => a.studentId === studentId && a.date === selectedDate && a.hour === selectedHour)?.status;
       };
 
       const handleMark = (studentId: string, status: 'PRESENT' | 'ABSENT' | 'LATE') => {
@@ -27,13 +29,14 @@ import React, { useState } from 'react';
         markAttendance({
           id: Date.now().toString(),
           date: selectedDate,
+          hour: selectedHour,
           studentId,
           status,
           markedBy: currentUser?.id || 'Unknown'
         });
       };
 
-      // Stats for the day
+      // Stats for the day and hour
       const presentCount = filteredStudents.filter(s => getStatus(s.id) === 'PRESENT').length;
       const absentCount = filteredStudents.filter(s => getStatus(s.id) === 'ABSENT').length;
 
@@ -41,11 +44,11 @@ import React, { useState } from 'react';
         <div className="p-8">
           <div className="mb-8">
             <h2 className="text-3xl font-bold text-gray-800">Attendance Tracker</h2>
-            <p className="text-gray-500">Mark daily attendance for classes</p>
+            <p className="text-gray-500">Mark daily attendance per hour</p>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-md mb-6 grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-            <div>
+          <div className="bg-white p-6 rounded-lg shadow-md mb-6 grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
+            <div className="md:col-span-1">
               <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
               <input 
                 type="date" 
@@ -53,6 +56,16 @@ import React, { useState } from 'react';
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Hour</label>
+              <select 
+                className="w-full border-gray-300 border rounded-md p-2 focus:ring-2 focus:ring-blue-500 outline-none font-bold text-blue-600"
+                value={selectedHour}
+                onChange={(e) => setSelectedHour(parseInt(e.target.value))}
+              >
+                {HOURS_PER_DAY.map(h => <option key={h} value={h}>Hour {h}</option>)}
+              </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
@@ -85,7 +98,7 @@ import React, { useState } from 'react';
               </select>
             </div>
             
-            <div className="flex gap-4 text-sm font-medium pb-2">
+            <div className="flex gap-4 text-sm font-medium pb-2 justify-end md:justify-start">
                <div className="text-green-600">Present: {presentCount}</div>
                <div className="text-red-600">Absent: {absentCount}</div>
             </div>
@@ -105,7 +118,7 @@ import React, { useState } from 'react';
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student Name</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reg No</th>
                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Section</th>
-                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Status (Hour {selectedHour})</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">

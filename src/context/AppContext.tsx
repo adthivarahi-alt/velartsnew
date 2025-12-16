@@ -149,9 +149,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       await updateSheetData(sid, 'Students!A1', studRows);
 
       // Attendance
-      const attRows = [['ID', 'Date', 'StudentID', 'Status', 'MarkedBy'], 
-        ...attendance.map(a => [a.id, a.date, a.studentId, a.status, a.markedBy])];
-      await clearSheetData(sid, 'Attendance!A:E');
+      const attRows = [['ID', 'Date', 'Hour', 'StudentID', 'Status', 'MarkedBy'], 
+        ...attendance.map(a => [a.id, a.date, a.hour, a.studentId, a.status, a.markedBy])];
+      await clearSheetData(sid, 'Attendance!A:F');
       await updateSheetData(sid, 'Attendance!A1', attRows);
 
       // Timetable
@@ -216,10 +216,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       // Attendance
-      const attRows = await fetchSheetData(sid, 'Attendance!A2:E');
+      const attRows = await fetchSheetData(sid, 'Attendance!A2:F');
       if (attRows.length) {
         setAttendance(attRows.map(r => ({
-          id: r[0], date: r[1], studentId: r[2], status: r[3] as any, markedBy: r[4]
+          id: r[0], date: r[1], hour: parseInt(r[2] || '1'), studentId: r[3], status: r[4] as any, markedBy: r[5]
         })));
       }
 
@@ -329,7 +329,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const markAttendance = (record: AttendanceRecord) => {
     setAttendance(prev => {
-      const filtered = prev.filter(a => !(a.date === record.date && a.studentId === record.studentId));
+      const filtered = prev.filter(a => !(a.date === record.date && a.studentId === record.studentId && a.hour === record.hour));
       return [...filtered, record];
     });
   };

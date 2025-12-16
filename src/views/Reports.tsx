@@ -5,6 +5,7 @@ import { ReportStats } from '../components/reports/ReportStats';
 import { ReportCharts } from '../components/reports/ReportCharts';
 import { SubmissionTable, ClassStatusItem, FacultyPendingItem } from '../components/reports/SubmissionTable';
 import { DepartmentSummary, DepartmentMetric } from '../components/reports/DepartmentSummary';
+import { HOURS_PER_DAY } from '../types';
 
 export const Reports: React.FC = () => {
   const { students, attendance, timetable, users, departments, years, sections } = useApp();
@@ -16,6 +17,7 @@ export const Reports: React.FC = () => {
   const [selectedYear, setSelectedYear] = useState(years[0] || 'III');
   const [selectedSection, setSelectedSection] = useState(sections[0] || 'A');
   const [selectedMonth, setSelectedMonth] = useState(new Date().toISOString().slice(0, 7));
+  const [selectedHour, setSelectedHour] = useState<number>(1);
 
   // --- Data Processing for Analytics Dashboard ---
 
@@ -34,7 +36,9 @@ export const Reports: React.FC = () => {
 
   // 2. Calculate Daily Stats & Class Status
   const { dailyStats, pendingClasses } = useMemo(() => {
-    const records = attendance.filter(a => a.date === selectedDate);
+    // Filter records by date and hour.
+    const records = attendance.filter(a => a.date === selectedDate && a.hour === selectedHour);
+    
     const totalStudents = students.length;
     const totalMarked = records.length;
     const present = records.filter(a => a.status === 'PRESENT').length;
@@ -64,9 +68,10 @@ export const Reports: React.FC = () => {
         });
       }
 
-      // Find Associated Faculty from Timetable
+      // Find Associated Faculty from Timetable for this specific HOUR
       const classId = `${cls.dept}-${cls.year}-${cls.section}`;
-      const staffIds = Array.from(new Set(timetable.filter(t => t.classId === classId).map(t => t.staffId)));
+      // Use selectedHour to find who was supposed to be there
+      const staffIds = Array.from(new Set(timetable.filter(t => t.classId === classId && t.hour === selectedHour).map(t => t.staffId)));
       const facultyNames = staffIds.map(sid => users.find(u => u.id === sid)?.name).filter(Boolean) as string[];
 
       return {
@@ -92,7 +97,7 @@ export const Reports: React.FC = () => {
       },
       pendingClasses: pendingList
     };
-  }, [attendance, selectedDate, students, classes, timetable, users]);
+  }, [attendance, selectedDate, selectedHour, students, classes, timetable, users]);
 
   // 3. Faculty Wise Pending List
   const facultyPendingList = useMemo(() => {
@@ -121,14 +126,15 @@ export const Reports: React.FC = () => {
     return Object.values(map).sort((a,b) => b.pendingClasses.length - a.pendingClasses.length);
   }, [dailyStats, users]);
 
-  // 4. Department-wise Stats (Simple for Charts)
+  // 4. Department-wise Stats
   const deptStats = useMemo(() => {
     const stats: Record<string, { total: number, present: number, marked: number }> = {};
     students.forEach(s => {
       if (!stats[s.department]) stats[s.department] = { total: 0, present: 0, marked: 0 };
       stats[s.department].total++;
     });
-    attendance.filter(a => a.date === selectedDate).forEach(a => {
+    // Filter by Hour
+    attendance.filter(a => a.date === selectedDate && a.hour === selectedHour).forEach(a => {
       const student = students.find(s => s.id === a.studentId);
       if (student && stats[student.department]) {
         stats[student.department].marked++;
@@ -140,7 +146,7 @@ export const Reports: React.FC = () => {
       totalStudents: data.total,
       attendancePct: data.marked > 0 ? Math.round((data.present / data.marked) * 100) : 0
     })).sort((a, b) => b.totalStudents - a.totalStudents);
-  }, [students, attendance, selectedDate]);
+  }, [students, attendance, selectedDate, selectedHour]);
 
   // 5. Detailed Department Metrics for Summary Table
   const deptMetrics: DepartmentMetric[] = useMemo(() => {
@@ -152,7 +158,7 @@ export const Reports: React.FC = () => {
       if (!metrics[s.department]) metrics[s.department] = { name: s.department, totalStudents: 0, marked: 0, present: 0, absent: 0, late: 0, pendingClasses: [] };
       metrics[s.department].totalStudents++;
     });
-    attendance.filter(a => a.date === selectedDate).forEach(a => {
+    attendance.filter(a => a.date === selectedDate && a.hour === selectedHour).forEach(a => {
        const s = students.find(stu => stu.id === a.studentId);
        if (s && metrics[s.department]) {
          metrics[s.department].marked++;
@@ -167,22 +173,23 @@ export const Reports: React.FC = () => {
       }
     });
     return Object.values(metrics).sort((a,b) => b.totalStudents - a.totalStudents);
-  }, [students, attendance, selectedDate, dailyStats, departments]);
+  }, [students, attendance, selectedDate, selectedHour, dailyStats, departments]);
 
-  // 6. Last 7 Days Trend
+  // 6. Last 7 Days Trend (Average of selected hour?)
   const trendData = useMemo(() => {
     const days = [];
     for (let i = 6; i >= 0; i--) {
       const d = new Date(selectedDate);
       d.setDate(d.getDate() - i);
       const dateStr = d.toISOString().split('T')[0];
-      const recs = attendance.filter(a => a.date === dateStr);
+      // Trend for the selected hour across days
+      const recs = attendance.filter(a => a.date === dateStr && a.hour === selectedHour);
       const pres = recs.filter(a => a.status === 'PRESENT').length;
       const pct = recs.length > 0 ? Math.round((pres / recs.length) * 100) : 0;
       days.push({ date: dateStr, pct, label: dateStr.slice(5) });
     }
     return days;
-  }, [attendance, selectedDate]);
+  }, [attendance, selectedDate, selectedHour]);
 
   // --- Export Logic ---
 
@@ -199,17 +206,19 @@ export const Reports: React.FC = () => {
       (s.section ? s.section === selectedSection : true)
     ).sort((a, b) => a.registerNumber.localeCompare(b.registerNumber));
 
-    let csv = `Register No,Name,${daysArray.join(',')},Total Present,Total Absent,Total Late\n`;
+    // Export with Hour
+    let csv = `Register No,Name,Hour,${daysArray.join(',')},Total Present,Total Absent,Total Late\n`;
     
     classStudents.forEach(s => {
       let present = 0;
       let absent = 0;
       let late = 0;
-      const row = [s.registerNumber, s.name];
+      const row = [s.registerNumber, s.name, selectedHour.toString()];
       
       daysArray.forEach(day => {
         const dateStr = `${selectedMonth}-${day.toString().padStart(2, '0')}`;
-        const record = attendance.find(a => a.studentId === s.id && a.date === dateStr);
+        // Fetch record for this Student, Date AND selected Hour
+        const record = attendance.find(a => a.studentId === s.id && a.date === dateStr && a.hour === selectedHour);
         const status = record ? record.status : '-';
         if (status === 'PRESENT') present++;
         if (status === 'ABSENT') absent++;
@@ -225,7 +234,7 @@ export const Reports: React.FC = () => {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `Attendance_${selectedDept}_${selectedYear}_${selectedSection}_${selectedMonth}.csv`;
+    a.download = `Attendance_${selectedDept}_${selectedYear}_${selectedSection}_Hour${selectedHour}_${selectedMonth}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -242,14 +251,28 @@ export const Reports: React.FC = () => {
           </h2>
           <p className="text-gray-500 mt-1">Real-time attendance insights and submission tracking</p>
         </div>
-        <div className="flex items-center gap-2 bg-white p-2 rounded-lg shadow-sm border border-gray-200">
-          <Calendar size={18} className="text-gray-500" />
-          <input 
-            type="date" 
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="outline-none text-gray-700 font-medium"
-          />
+        <div className="flex gap-4">
+           {/* Date Picker */}
+           <div className="flex items-center gap-2 bg-white p-2 rounded-lg shadow-sm border border-gray-200">
+             <Calendar size={18} className="text-gray-500" />
+             <input 
+               type="date" 
+               value={selectedDate}
+               onChange={(e) => setSelectedDate(e.target.value)}
+               className="outline-none text-gray-700 font-medium"
+             />
+           </div>
+           {/* Hour Selector */}
+           <div className="flex items-center gap-2 bg-white p-2 rounded-lg shadow-sm border border-gray-200">
+             <span className="text-xs font-bold text-gray-500 uppercase">View:</span>
+             <select 
+               value={selectedHour}
+               onChange={(e) => setSelectedHour(parseInt(e.target.value))}
+               className="outline-none text-blue-600 font-bold bg-transparent"
+             >
+               {HOURS_PER_DAY.map(h => <option key={h} value={h}>Hour {h}</option>)}
+             </select>
+           </div>
         </div>
       </div>
 
@@ -282,6 +305,7 @@ export const Reports: React.FC = () => {
       {/* Monthly Report Export Section */}
       <div className="mt-12 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
         <h3 className="text-lg font-bold text-gray-800 mb-4">Export Monthly Report</h3>
+        <p className="text-xs text-gray-500 mb-4">Generates CSV report for the selected <strong>Hour {selectedHour}</strong>.</p>
         <div className="flex flex-wrap gap-4 items-end">
            <div className="flex flex-col">
               <label className="text-xs text-gray-500 mb-1">Month</label>
