@@ -8,7 +8,7 @@ export interface DepartmentMetric {
   present: number;
   absent: number;
   late: number;
-  pendingClasses: string[]; // e.g. ["III-A", "II-B"]
+  pendingClasses: string[]; 
 }
 
 interface DepartmentSummaryProps {
@@ -37,7 +37,6 @@ export const DepartmentSummary: React.FC<DepartmentSummaryProps> = ({ metrics })
             {metrics.map((dept, idx) => {
               const percentage = dept.totalStudents > 0 ? Math.round((dept.marked / dept.totalStudents) * 100) : 0;
               const isComplete = percentage === 100;
-              
               return (
                 <tr key={idx} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -64,10 +63,7 @@ export const DepartmentSummary: React.FC<DepartmentSummaryProps> = ({ metrics })
                         <span className={`font-bold ${isComplete ? 'text-green-600' : 'text-blue-600'}`}>{percentage}%</span>
                       </div>
                       <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
-                        <div 
-                          className={`h-full rounded-full transition-all duration-500 ${isComplete ? 'bg-green-500' : 'bg-blue-500'}`} 
-                          style={{ width: `${percentage}%` }}
-                        ></div>
+                        <div className={`h-full rounded-full transition-all duration-500 ${isComplete ? 'bg-green-500' : 'bg-blue-500'}`} style={{ width: `${percentage}%` }}></div>
                       </div>
                     </div>
                   </td>
@@ -91,13 +87,6 @@ export const DepartmentSummary: React.FC<DepartmentSummaryProps> = ({ metrics })
                 </tr>
               );
             })}
-            {metrics.length === 0 && (
-              <tr>
-                <td colSpan={4} className="px-6 py-8 text-center text-gray-400">
-                  No department data found.
-                </td>
-              </tr>
-            )}
           </tbody>
         </table>
       </div>

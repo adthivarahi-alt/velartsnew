@@ -8,7 +8,6 @@ interface ReportChartsProps {
 }
 
 export const ReportCharts: React.FC<ReportChartsProps> = ({ deptStats, trendData, dailyDistribution }) => {
-  // Calculate percentages for daily distribution
   const totalMarked = dailyDistribution.present + dailyDistribution.absent + dailyDistribution.late;
   const presentPct = totalMarked > 0 ? Math.round((dailyDistribution.present / totalMarked) * 100) : 0;
   const absentPct = totalMarked > 0 ? Math.round((dailyDistribution.absent / totalMarked) * 100) : 0;
@@ -21,7 +20,7 @@ export const ReportCharts: React.FC<ReportChartsProps> = ({ deptStats, trendData
   // Calculate points for the line chart
   const points = trendData.map((d, i) => {
     const x = (i / (trendData.length - 1)) * vbWidth;
-    const y = vbHeight - (d.pct / 100) * vbHeight; // Invert y because SVG y=0 is top
+    const y = vbHeight - (d.pct / 100) * vbHeight;
     return `${x},${y}`;
   }).join(' ');
 
@@ -39,15 +38,16 @@ export const ReportCharts: React.FC<ReportChartsProps> = ({ deptStats, trendData
         <h3 className="text-lg font-bold text-gray-800 mb-6">Daily Attendance Status</h3>
         
         <div className="flex flex-col gap-6">
-          {/* Visual Bar */}
-          <div className="w-full h-8 flex rounded-lg overflow-hidden">
-            <div className="bg-green-500 h-full transition-all duration-500" style={{ width: `${presentPct}%` }}></div>
-            <div className="bg-red-500 h-full transition-all duration-500" style={{ width: `${absentPct}%` }}></div>
-            <div className="bg-yellow-500 h-full transition-all duration-500" style={{ width: `${latePct}%` }}></div>
-            {totalMarked === 0 && <div className="bg-gray-100 h-full w-full"></div>}
+          <div className="w-full h-8 flex rounded-lg overflow-hidden bg-gray-100">
+            {totalMarked > 0 && (
+              <>
+                <div className="bg-green-500 h-full transition-all duration-500" style={{ width: `${presentPct}%` }}></div>
+                <div className="bg-red-500 h-full transition-all duration-500" style={{ width: `${absentPct}%` }}></div>
+                <div className="bg-yellow-500 h-full transition-all duration-500" style={{ width: `${latePct}%` }}></div>
+              </>
+            )}
           </div>
 
-          {/* Legend / Stats */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -112,19 +112,11 @@ export const ReportCharts: React.FC<ReportChartsProps> = ({ deptStats, trendData
                       <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
                    </linearGradient>
                 </defs>
-                
-                {/* Horizontal Grid Lines */}
                 <line x1="0" y1="0" x2={vbWidth} y2="0" stroke="#f3f4f6" strokeWidth="1" strokeDasharray="4 4" />
                 <line x1="0" y1={vbHeight * 0.5} x2={vbWidth} y2={vbHeight * 0.5} stroke="#f3f4f6" strokeWidth="1" strokeDasharray="4 4" />
                 <line x1="0" y1={vbHeight} x2={vbWidth} y2={vbHeight} stroke="#e5e7eb" strokeWidth="1" />
-
-                {/* Filled Area Under Line */}
                 <polygon points={`0,${vbHeight} ${points} ${vbWidth},${vbHeight}`} fill="url(#lineGradient)" />
-
-                {/* The Line */}
                 <polyline fill="none" stroke="#3b82f6" strokeWidth="3" points={points} strokeLinecap="round" strokeLinejoin="round" />
-
-                {/* Dots & Labels */}
                 {dots.map((dot, i) => (
                   <g key={i}>
                      <circle cx={dot.x} cy={dot.y} r="4" fill="white" stroke="#2563eb" strokeWidth="2" />

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useApp } from '../context/AppContext';
-import { PieChart, Calendar, Download, FileSpreadsheet, Filter } from 'lucide-react';
+import { PieChart, Calendar, Download, FileSpreadsheet } from 'lucide-react';
 import { ReportStats } from '../components/reports/ReportStats';
 import { ReportCharts } from '../components/reports/ReportCharts';
 import { SubmissionTable, ClassStatusItem, FacultyPendingItem } from '../components/reports/SubmissionTable';
@@ -35,7 +35,7 @@ export const Reports: React.FC = () => {
   }, [students]);
 
   // 2. Daily Stats & Class Status
-  const { dailyStats, pendingClasses } = useMemo(() => {
+  const { dailyStats } = useMemo(() => {
     const records = attendance.filter(a => a.date === selectedDate && a.hour === selectedHour);
     
     const totalStudents = students.length;
@@ -45,15 +45,10 @@ export const Reports: React.FC = () => {
     const late = records.filter(a => a.status === 'LATE').length;
     
     let classesUpdated = 0;
-    const pendingList: typeof classes = [];
 
     const classStatus: ClassStatusItem[] = classes.map(cls => {
       const isMarked = cls.studentIds.some(sid => records.find(r => r.studentId === sid));
-      if (isMarked) {
-        classesUpdated++;
-      } else {
-        pendingList.push(cls);
-      }
+      if (isMarked) classesUpdated++;
       
       let classPresent = 0;
       let classTotalMarked = 0;
@@ -91,8 +86,7 @@ export const Reports: React.FC = () => {
         classesTotal: classes.length,
         classesUpdated,
         classStatus
-      },
-      pendingClasses: pendingList
+      }
     };
   }, [attendance, selectedDate, selectedHour, students, classes, timetable, users]);
 
@@ -112,12 +106,6 @@ export const Reports: React.FC = () => {
             }
             map[staffName].pendingClasses.push(`${cls.dept}-${cls.year}-${cls.section}`);
          });
-       } else {
-         const unassignedKey = "Unassigned / No Timetable";
-         if (!map[unassignedKey]) {
-           map[unassignedKey] = { staffName: unassignedKey, dept: '-', pendingClasses: [] };
-         }
-         map[unassignedKey].pendingClasses.push(`${cls.dept}-${cls.year}-${cls.section}`);
        }
     });
     return Object.values(map).sort((a,b) => b.pendingClasses.length - a.pendingClasses.length);

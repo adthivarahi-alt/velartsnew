@@ -26,12 +26,6 @@ interface SubmissionTableProps {
 }
 
 export const SubmissionTable: React.FC<SubmissionTableProps> = ({ viewMode, setViewMode, classStatus, facultyPendingList }) => {
-  
-  const handleNotify = (staffName: string, count: number) => {
-    // In a real app, this would trigger an email or SMS API
-    alert(`Notification sent to ${staffName} regarding ${count} pending classes.`);
-  };
-
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
       <div className="p-6 border-b border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
@@ -63,7 +57,7 @@ export const SubmissionTable: React.FC<SubmissionTableProps> = ({ viewMode, setV
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Class</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Students</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Attendance</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Associated Faculty</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Faculty</th>
                 <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
               </tr>
             </thead>
@@ -75,7 +69,6 @@ export const SubmissionTable: React.FC<SubmissionTableProps> = ({ viewMode, setV
                         <div className="bg-blue-50 text-blue-600 p-2 rounded mr-3 font-bold text-xs">{cls.dept}</div>
                         <div>
                           <p className="text-sm font-semibold text-gray-800">{cls.year} Year - Sec {cls.section}</p>
-                          <p className="text-xs text-gray-400">ID: {cls.classId}</p>
                         </div>
                     </div>
                   </td>
@@ -93,14 +86,7 @@ export const SubmissionTable: React.FC<SubmissionTableProps> = ({ viewMode, setV
                     )}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
-                      {cls.faculty.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {cls.faculty.slice(0, 2).map((f: string, i: number) => (
-                            <span key={i} className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded text-xs">{f}</span>
-                          ))}
-                          {cls.faculty.length > 2 && <span className="text-xs text-gray-400">+{cls.faculty.length - 2} more</span>}
-                        </div>
-                      ) : <span className="text-xs text-gray-300 italic">No mapping</span>}
+                      {cls.faculty.length > 0 ? cls.faculty.join(', ') : <span className="text-xs text-gray-300 italic">No mapping</span>}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right">
                     {cls.status === 'UPDATED' ? (
@@ -125,13 +111,12 @@ export const SubmissionTable: React.FC<SubmissionTableProps> = ({ viewMode, setV
               <tr>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Faculty Name</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Department</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Pending Classes Count</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Pending Count</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Classes List</th>
-                <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Action</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-100">
-                {facultyPendingList.length > 0 ? facultyPendingList.map((item, idx) => (
+                {facultyPendingList.map((item, idx) => (
                   <tr key={idx} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-3">
@@ -149,31 +134,19 @@ export const SubmissionTable: React.FC<SubmissionTableProps> = ({ viewMode, setV
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex flex-wrap gap-2">
-                        {item.pendingClasses.map((cls: string, i: number) => (
+                        {item.pendingClasses.map((cls, i) => (
                           <span key={i} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-700 border border-red-100">
                             {cls}
                           </span>
                         ))}
                       </div>
                     </td>
-                    <td className="px-6 py-4 text-right">
-                      <button 
-                        onClick={() => handleNotify(item.staffName, item.pendingClasses.length)}
-                        className="text-xs text-blue-600 hover:text-blue-800 font-medium border border-blue-200 px-3 py-1 rounded hover:bg-blue-50 transition flex items-center gap-1 ml-auto"
-                      >
-                        <Bell size={12} /> Notify
-                      </button>
-                    </td>
                   </tr>
-                )) : (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
-                      <div className="flex flex-col items-center">
-                        <CheckCircle2 size={48} className="text-green-300 mb-2" />
-                        <p>All clear! No pending submissions found for associated faculty.</p>
-                      </div>
-                    </td>
-                  </tr>
+                ))}
+                {facultyPendingList.length === 0 && (
+                   <tr>
+                     <td colSpan={4} className="px-6 py-12 text-center text-gray-500">All clear!</td>
+                   </tr>
                 )}
             </tbody>
           </table>
